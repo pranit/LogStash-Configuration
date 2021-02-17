@@ -1,0 +1,33 @@
+input {
+    udp {
+            port => 5514
+    }
+}
+
+
+filter {
+    grok {
+           match => { "message" =>  "%{NONNEGINT:syslog5424_pri}>%{SYSLOGTIMESTAMP:timestamp} %{SYSLOGHOST:logsource}" }
+
+}
+}
+
+output {
+
+   if "apic1,apic2,lab1r00002-ne-RDC-LF4" in [logsource] {
+
+      kafka {
+                bootstrap_servers => "localhost:9092"
+                topic_id =>  "syslog-transport"
+          }
+
+}
+   else {
+
+      kafka {
+                bootstrap_servers => "localhost:9092"
+                topic_id =>  "syslog-datacenter"
+        }
+   }
+
+}
