@@ -14,7 +14,7 @@ filter {
 
 output {
 
-   if "apic1,apic2,lab1r00002-ne-RDC-LF4" in [logsource] {
+    if [logsource] in [ "apic1", "apic2", "lab1r00002-ne-LF1", "lab1r00002-ne-LF2", "lab1r00002-ne-LF3", "lab1r00002-ne-LF4" ] {
 
       kafka {
                 bootstrap_servers => "localhost:9092"
