@@ -1,3 +1,4 @@
+
 input {
   exec {
     command => "df -h / /opt; free -m; top -bn1 | grep 'Cpu(s)'"
@@ -12,7 +13,7 @@ filter {
       "message" => [
         "%{WORD:filesystem}\s+%{NUMBER:size}\s+%{NUMBER:used}\s+%{NUMBER:available}\s+%{DATA:percent_used}\s+%{DATA:mount_point}",
         "Mem:\s+%{NUMBER:total}\s+%{NUMBER:used}\s+%{NUMBER:free}\s+%{NUMBER:shared}\s+%{NUMBER:buffers}\s+%{NUMBER:cached}",
-        "Cpu(s):\s+%{NUMBER:cpu_used}%"
+        "Cpu\(s\):\s+%{NUMBER:cpu_used}%"
       ]
     }
   }
@@ -23,18 +24,17 @@ filter {
       convert => { "available" => "integer" }
       convert => { "percent_used" => "integer" }
     }
-    if [percent_used] > 70 {
+    if [percent_used] > 10 {
       mutate {
-        add_field => { "full_disk" => "%{mount_point}" }
+        add_field => { "full_disk" => true }
       }
     }
   }
   if [used] and [total] {
-    mutate {
-      math => { "memory_used_percent" => "(event.get('used').to_f / event.get('total').to_f) * 100" }
-      convert => { "memory_used_percent" => "integer" }
+    ruby {
+      code => 'event.set("memory_used_percent", (event.get("used").to_f / event.get("total").to_f) * 100)'
     }
-    if [memory_used_percent] > 70 {
+    if [memory_used_percent] > 10 {
       mutate {
         add_field => { "high_memory_usage" => true }
       }
@@ -44,7 +44,7 @@ filter {
     mutate {
       convert => { "cpu_used" => "integer" }
     }
-    if [cpu_used] > 70 {
+    if [cpu_used] > 10 {
       mutate {
         add_field => { "high_cpu_usage" => true }
       }
@@ -58,8 +58,8 @@ output {
       to => "your-email@example.com"
       from => "logstash@example.com"
       subject => "System resource warning on %{host}"
-      body => "The %{if [full_disk] }%{[full_disk]}% %{end}%{if [high_memory_usage]}memory utilization is %{[memory_used_percent]}% %{end} %{if [high_cpu_usage]}CPU utilization is %{[cpu_used]}% %{end}on %{host} is more than 70% full."
-      domain => "mail.example.com"
+      body => "The %{if [full_disk] }%{[mount_point]}% partition is %{[percent_used]}% full. %{end}%{if [high_memory_usage]}Memory usage is %{[memory_used_percent]}%. %{end}%{if [high_cpu_usage]}CPU usage is %{[cpu_used]}%. %{end}Please take appropriate action."
+      address => "SMTP_SERVER"
       port => 25
     }
   }
